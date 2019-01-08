@@ -13,7 +13,13 @@ filenames = []
 pat = re.compile('[^\.]*\.')
 
 for dirpath, dirnames, filenames in os.walk(pcap_path):
+
+    n_files = len(filenames)
+    i_file = 0
+
     for filename in filenames:
+
+        i_file += 1
 
         path = os.path.join(dirpath, filename)
 
@@ -22,9 +28,9 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
         save_path = os.path.join(save_dir_path, filename[actual_name.span()[0]:actual_name.span()[1] - 1] + '_flows.p')
 
         if not os.path.isfile(save_path):
-            print("Loading %s" % path)
+            print("Loading file %d/%d: %s" % (i_file, n_files, path))
 
-            flows = []
+            flows = set()
             i_packet = 0
 
             ## The following code is taking from the scapy sniff function
@@ -93,16 +99,13 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
                         if sip is None or dip is None or sport is None or dport is None or prot is None:
                             pass
                         else:
-                            flows.append((sip, dip, sport, dport, prot))
+                            flows.add((sip, dip, sport, dport, prot))
 
             except KeyboardInterrupt:
                 pass
 
             for s in sniff_sockets:
                 s.close()
-
-
-            flows = set(flows)
 
             print("Number of unique flows: %d" % len(flows))
 

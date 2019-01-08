@@ -30,12 +30,10 @@ for dirpath, dirnames, filenames in os.walk(p_files_path):
                 n_packets = len(packets)
                 i_packet = 0
 
-                dns_names = []
-
                 for packet in packets:
 
                     i_packet += 1
-                    print("Loading packet %s/%s" %(i_packet, n_packets), flush=True, end='\r')
+                    print("Loading packet %d/%d" %(i_packet, n_packets), flush=True, end='\r')
 
                     sip = None
                     dip = None

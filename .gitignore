@@ -1,0 +1,10 @@
+/datasets/**
+/saves/**
+.vscode/
+*.directory
+
+!*.gitkeep
+
+\.idea/
+
+src/__pycache__/

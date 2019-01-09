@@ -30,8 +30,9 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
         if not os.path.isfile(save_path):
             print("Loading file %d/%d: %s" % (i_file, n_files, path))
 
-            flows = set()
+            flow_keys = set()
             i_packet = 0
+            flows = {}
 
             ## The following code is taking from the scapy sniff function
             sniff_sockets = {}
@@ -99,7 +100,13 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
                         if sip is None or dip is None or sport is None or dport is None or prot is None:
                             pass
                         else:
-                            flows.add((sip, dip, sport, dport, prot))
+                            flow_key = (sip, dip, sport, dport, prot)
+                            flow_keys.add(flow_key)
+
+                            if not flow_key in flows:
+                                flows[flow_key] = 0
+
+                            flows[flow_key] += 1
 
             except KeyboardInterrupt:
                 pass
@@ -107,10 +114,10 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
             for s in sniff_sockets:
                 s.close()
 
-            print("Number of unique flows: %d" % len(flows))
+            print("Number of unique all_flows_save: %d" % len(flow_keys))
 
             with open(save_path, 'wb') as file:
-                pickle.dump((flows), file)
+                pickle.dump(flows, file)
 
 
 

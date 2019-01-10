@@ -117,7 +117,7 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
             for s in sniff_sockets:
                 s.close()
 
-            print("Number of unique all_flows_save: %d" % len(flow_keys))
+            print("Number of unique flows: %d" % len(flow_keys))
 
             with open(save_path, 'wb') as file:
                 pickle.dump(flows, file)

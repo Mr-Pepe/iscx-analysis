@@ -120,8 +120,8 @@ for app in app_names:
 print("%f%% of all flows can be associated with a specific application" % (n_unique_flows_total / n_flows_total))
 print("%f%% of all packets can be associated with a specific application" % (n_unambiguous_packets_total / n_packets_total))
 
-table_content = np.empty((18, 5), dtype='object')
 col_labels = ("Application", "Number of flows", "Number of packets", "Unique flows", "Unambiguous packets")
+table_content = np.empty((18, 5), dtype='object')
 table_content[:, 0]      = np.array([app_names + ["Total"]])[0]
 table_content[:-1, 1]    = np.array([len(flows) for app, flows in flows_by_app.items()])
 table_content[-1, 1]     = table_content[:-1, 1].sum()
@@ -131,6 +131,12 @@ table_content[:-1, 3]    = np.array(list(unique_flows_by_app.values())).round(de
 table_content[-1, 3]     = np.round(n_unique_flows_total / n_flows_total, decimals=2)
 table_content[:-1, 4]    = np.array(list(unambiguous_packets_by_app.values())).round(decimals=2)
 table_content[-1, 4]     = np.round(n_unambiguous_packets_total / n_packets_total, decimals=2)
+
+
+# Use the following lines for a reduced view
+# table_content = np.concatenate((np.expand_dims(table_content[:, 0],1), table_content[:, 3:]), axis=1)
+# col_labels = ("Application", "Unique flows", "Unambiguous packets")
+
 
 fig = plt.figure()
 ax = plt.gca()

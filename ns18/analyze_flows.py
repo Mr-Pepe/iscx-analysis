@@ -117,11 +117,11 @@ for app in app_names:
     n_unique_flows_total += n_unique_flows_this_app
     n_unambiguous_packets_total += n_unambiguous_packets_this_app
 
-print("%f%% of all all_flows_with_packets can be associated with a specific application" % (n_unique_flows_total / n_flows_total))
+print("%f%% of all flows can be associated with a specific application" % (n_unique_flows_total / n_flows_total))
 print("%f%% of all packets can be associated with a specific application" % (n_unambiguous_packets_total / n_packets_total))
 
 table_content = np.empty((18, 5), dtype='object')
-col_labels = ("Application", "Number of all_flows_with_packets", "Number of packets", "Unique all_flows_with_packets", "Unambiguous packets")
+col_labels = ("Application", "Number of flows", "Number of packets", "Unique flows", "Unambiguous packets")
 table_content[:, 0]      = np.array([app_names + ["Total"]])[0]
 table_content[:-1, 1]    = np.array([len(flows) for app, flows in flows_by_app.items()])
 table_content[-1, 1]     = table_content[:-1, 1].sum()

@@ -85,6 +85,9 @@ for dirpath, dirnames, filenames in os.walk(pcap_path):
                             dip = packet[IPv6].dst
 
                         if packet.haslayer(TCP):
+                            # Skip if no payload
+                            if getattr(packet[TCP], 'load', 0) == 0:
+                                continue
                             sport = packet[TCP].sport
                             dport = packet[TCP].dport
                             prot = 'TCP'

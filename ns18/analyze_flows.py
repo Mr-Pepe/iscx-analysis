@@ -1,18 +1,12 @@
 import pickle
 import os
 import numpy as np
-import seaborn as sns
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn import svm
-import re
 
 # Set console width
 desired_width = 320
-pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width)
 
-p_files_path = "../datasets/all_flows_save"
+p_files_path = "../datasets/flows"
 
 # Order is important because 'tor' is included in 'torrent' and tor filenames also include other app names
 app_names = ['torrent',
@@ -33,8 +27,7 @@ app_names = ['torrent',
              'vimeo',
              'youtube']
 
-all_flows = []
-flows_by_app = {key: set() for key in app_names}
+flows_by_app = {key: {} for key in app_names}
 labels = []
 i_file = 0
 
@@ -63,72 +56,67 @@ for dirpath, dirnames, filenames in os.walk(p_files_path):
             with open(path, 'rb') as file:
                 flows = pickle.load(file)
 
-                for flow in flows:
+                for flow, n_packets in flows.items():
                     # Discard IP addresses
                     flow = flow[2:]
-                    flows_by_app[app_name].add(flow)
+
+                    if not flow in flows_by_app[app_name]:
+                        flows_by_app[app_name][flow] = 0
+
+                    flows_by_app[app_name][flow] += n_packets
 
                 i_file += 1
 
-
-# Reduce the all_flows_save to a set for each app and then look at the overall set again
-n_flows = 0
-all_flows = set()
-for app, flows in flows_by_app.items():
-    n_flows += len(flows)
-
-    for flow in flows:
-        all_flows.add(flow)
-
-print("%d all_flows_save can be associated with a specific application" %len(all_flows))
-print("%d all_flows_save are associated with more than one app" % (n_flows-len(all_flows)))
-
-## Calculate the overlap between apps
-# Create array with zeros on the main diagonal and ones elsewhere
+## Calculate the flow overlap between apps
 overlap = np.zeros((len(app_names), len(app_names)),dtype='int')
-overlap_by_app = {key: 0 for key in app_names}
-overlapping_flows_by_app = {key: set() for key in app_names}
-
+# Which flows in an app are also used in another app
+overlapping_flows_by_app = {key: {} for key in app_names}
 
 for i_app1, app1 in enumerate(app_names):
     for i_app2, app2 in enumerate(app_names):
         if i_app1 != i_app2:
-            overlapping_flows = flows_by_app[app1] & flows_by_app[app2]
+            overlapping_flows = set(flows_by_app[app1].keys()) & set(flows_by_app[app2].keys())
             overlap[i_app1, i_app2] = len(overlapping_flows)
 
             for flow in overlapping_flows:
-                overlapping_flows_by_app[app1].add(flow)
+                overlapping_flows_by_app[app1][flow] = flows_by_app[app1][flow]
 
+# Percentage of flows in an app also used in another app
+flow_overlap_by_app = {key: 0 for key in app_names}
+# Percentage of packets recorded for an app that can be clearly associated with it
+unambiguous_packets_by_app = {key: 0 for key in app_names}
+
+n_flows_total   = 0
+n_packets_total  = 0
+n_unique_flows_total = 0
+n_unambiguous_packets_total = 0
 
 for app in app_names:
-    overlap_by_app[app] = len(overlapping_flows_by_app[app]) / len(flows_by_app[app])
+    # Calculate percentage of unique flows
+    n_flows_this_app            = len(flows_by_app[app])
+    n_non_unique_flows_this_app = len(overlapping_flows_by_app[app])
+    n_unique_flows_this_app     = n_flows_this_app - n_non_unique_flows_this_app
+    flow_overlap_this_app       = n_unique_flows_this_app / n_flows_this_app
+
+    # print("%.2f %% of the %s flows are unique, which is %d of %d" % (flow_overlap_this_app * 100, app, n_unique_flows_this_app, n_flows_this_app))
+
+    # Calculate percentage of unambiguous packets
+    n_packets_this_app              = sum(list(flows_by_app[app].values()))
+    n_ambiguous_packets_this_app    = sum(list(overlapping_flows_by_app[app].values()))
+    n_unambiguous_packets_this_app  = n_packets_this_app - n_ambiguous_packets_this_app
+    unambiguous_packets_this_app    = n_unambiguous_packets_this_app / n_packets_this_app
+
+    print("%.2f %% of the %s packets can be associated directly with it, which is %d of %d" % (unambiguous_packets_this_app * 100, app, n_unambiguous_packets_this_app,  n_packets_this_app))
+
+    unambiguous_packets_by_app[app] = unambiguous_packets_this_app
+    flow_overlap_by_app[app]        = flow_overlap_this_app
+
+    n_flows_total += n_flows_this_app
+    n_packets_total += n_packets_this_app
+    n_unique_flows_total += n_unique_flows_this_app
+    n_unambiguous_packets_total += n_unambiguous_packets_this_app
 
 
 
-
-overlap[overlap > 6000] = 6000
-
-df = pd.DataFrame(overlap, columns=app_names)
-
-sns.heatmap(df)
-plt.show()
-
-print("Test")
-
-
-
-
-
-
-# df = {'label': labels,
-#       'sip': [flow[0] for flow in all_flows],
-#       'dip': [flow[1] for flow in all_flows],
-#       'sport': [flow[2] for flow in all_flows],
-#       'dport': [flow[3] for flow in all_flows],
-#       'prot': [flow[4] for flow in all_flows]
-#       }
-#
-# df = pd.DataFrame(df)
-# df = df[['label', 'sip', 'dip', 'sport', 'dport', 'prot']]
-#
-# reduced_df = df[['sport', 'dport', 'prot']]
+print("%f%% of all flows can be associated with a specific application" % (n_unique_flows_total / n_flows_total))
+print("%f%% of all packets can be associated with a specific application" % (n_unambiguous_packets_total / n_packets_total))

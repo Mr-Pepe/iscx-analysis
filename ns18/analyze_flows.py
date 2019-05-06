@@ -120,16 +120,36 @@ for app in app_names:
 print("%f%% of all flows can be associated with a specific application" % (n_unique_flows_total / n_flows_total))
 print("%f%% of all packets can be associated with a specific application" % (n_unambiguous_packets_total / n_packets_total))
 
+name_mapping = {
+        'AIM chat': 'aim',
+        'Email':    'email',
+        'Facebook': 'facebook',
+        'FTPS':     'ftps',
+        'Gmail':    'gmail',
+        'Hangouts': 'hangout',
+        'ICQ':      'icq',
+        'Netflix':  'netflix',
+        'SCP':      'scp',
+        'SFTP':     'sftp',
+        'Skype':    'skype',
+        'Spotify':  'spotify',
+        'Torrent':  'torrent',
+        'Tor':      'tor',
+        'VoipBuster': 'voipbuster',
+        'Vimeo':    'vimeo',
+        'Youtube':  'youtube'
+}
+
 col_labels = ("Application", "Number of flows", "Number of packets", "Unique flows", "Unambiguous packets")
 table_content = np.empty((18, 5), dtype='object')
-table_content[:, 0]      = np.array([app_names + ["Total"]])[0]
-table_content[:-1, 1]    = np.array([len(flows) for app, flows in flows_by_app.items()])
+table_content[:, 0]      = np.array([list(name_mapping.keys()) + ["Total/ Average"]])[0]
+table_content[:-1, 1]    = np.array([len(flows_by_app[app]) for app in list(name_mapping.values())])
 table_content[-1, 1]     = table_content[:-1, 1].sum()
-table_content[:-1, 2]    = np.array([sum(list(flows.values())) for flows in list(flows_by_app.values())])
+table_content[:-1, 2]    = np.array([sum(list(flows_by_app[app].values())) for app in list(name_mapping.values())])
 table_content[-1, 2]     = table_content[:-1, 2].sum()
-table_content[:-1, 3]    = np.array(list(unique_flows_by_app.values())).round(decimals=2)
+table_content[:-1, 3]    = np.array([unique_flows_by_app[app] for app in list(name_mapping.values())]).round(decimals=2)
 table_content[-1, 3]     = np.round(n_unique_flows_total / n_flows_total, decimals=2)
-table_content[:-1, 4]    = np.array(list(unambiguous_packets_by_app.values())).round(decimals=2)
+table_content[:-1, 4]    = np.array([unambiguous_packets_by_app[app] for app in list(name_mapping.values())]).round(decimals=2)
 table_content[-1, 4]     = np.round(n_unambiguous_packets_total / n_packets_total, decimals=2)
 
 

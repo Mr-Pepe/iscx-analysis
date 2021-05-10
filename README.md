@@ -12,6 +12,6 @@ without incoporating any payload data.
 Find further information in report.pdf.
 
 ## Procedure
-1. Download .pcap-files of the ISCX VPN-nonVPN Dataset 2016 from [here](https://iscxdownloads.cs.unb.ca/iscxdownloads/ISCX-VPN-NonVPN-2016/CompletePCAPs.zip).
+1. Download .pcap-files of the ISCX VPN-nonVPN Dataset 2016 from [here](https://www.unb.ca/cic/datasets/vpn.html).
 1. Run extract_flows_from_pcap.py on the downloaded .pcap-files
 1. Run analyze_flows.py on the extracted flows 

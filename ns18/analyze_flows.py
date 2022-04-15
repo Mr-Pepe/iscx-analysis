@@ -1,5 +1,6 @@
-import os
 import pickle
+from pathlib import Path
+from typing import Counter
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ matplotlib.use("Qt5Agg")
 desired_width = 320
 np.set_printoptions(linewidth=desired_width)
 
-p_files_path = "../datasets/all_flows_with_packets"
+flow_files_path = Path("./datasets/flows")
 
 # Order is important because 'tor' is included in 'torrent' and tor filenames also include other app names
 app_names = [
@@ -33,46 +34,32 @@ app_names = [
     "youtube",
 ]
 
-flows_by_app = {key: {} for key in app_names}
+flows_by_app = {app: {} for app in app_names}
 labels = []
-i_file = 0
 
 use_vpn = True
 
-for dirpath, dirnames, filenames in os.walk(p_files_path):
+for flow_file in flow_files_path.glob("*.p"):
 
-    for filename in filenames:
-        path = os.path.join(dirpath, filename)
+    if use_vpn or "vpn" not in flow_file.stem:
+        app_name = ""
+        # Organize by application
+        for app in app_names:
+            if app in flow_file.stem.lower():
+                app_name = app
+                break
 
-        # Look at non-vpn and non-tor files
-        if use_vpn or filename.find("vpn") == -1:
-            found = 0
-            app_name = ""
-            # Organize by application
-            for app in app_names:
-                if filename.lower().find(app) != -1:
-                    found += 1
-                    app_name = app
-                    break
+        with open(flow_file, "rb") as file:
+            flows: Counter = pickle.load(file)
 
-            if found == 0:
-                print("Could not find corresponding app")
-            if found == 2:
-                print("Found to corresponding apps")
+            for flow, n_packets in flows.items():
+                # Discard IP addresses
+                flow = flow[2:]
 
-            with open(path, "rb") as file:
-                flows = pickle.load(file)
+                if flow not in flows_by_app[app_name]:
+                    flows_by_app[app_name][flow] = 0
 
-                for flow, n_packets in flows.items():
-                    # Discard IP addresses
-                    flow = flow[2:]
-
-                    if flow not in flows_by_app[app_name]:
-                        flows_by_app[app_name][flow] = 0
-
-                    flows_by_app[app_name][flow] += n_packets
-
-                i_file += 1
+                flows_by_app[app_name][flow] += n_packets
 
 # Calculate the flow overlap between apps
 n_overlapping_flows = np.zeros((len(app_names), len(app_names)), dtype="int")
@@ -123,12 +110,12 @@ for app in app_names:
     n_unambiguous_packets_total += n_unambiguous_packets_this_app
 
 print(
-    "%f%% of all flows can be associated with a specific application"
-    % (n_unique_flows_total / n_flows_total)
+    f"{n_unique_flows_total / n_flows_total:.2f}% of all flows can be associated "
+    "with a specific application"
 )
 print(
-    "%f%% of all packets can be associated with a specific application"
-    % (n_unambiguous_packets_total / n_packets_total)
+    f"{n_unambiguous_packets_total / n_packets_total:.2f}% of all packets can be "
+    "associated with a specific application"
 )
 
 name_mapping = {
@@ -158,7 +145,7 @@ col_labels = (
     "Unique flows",
     "Unambiguous packets",
 )
-table_content = np.empty((18, 5), dtype="object")
+table_content = np.empty((len(app_names) + 1, 5), dtype="object")
 table_content[:, 0] = np.array([list(name_mapping.keys()) + ["Total/ Average"]])[0]
 table_content[:-1, 1] = np.array(
     [len(flows_by_app[app]) for app in list(name_mapping.values())]

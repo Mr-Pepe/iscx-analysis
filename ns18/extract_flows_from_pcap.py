@@ -1,133 +1,70 @@
-import os
+"""This script counts how many packets belong to each flow in a .pcap file."""
+
+import logging
 import pickle
+from collections import Counter
+from pathlib import Path
 
-from scapy.all import *
+from scapy.layers.dns import DNS
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.inet6 import IPv6
+from scapy.utils import PcapReader
 
-pcap_path = "./datasets/pcaps"
-save_dir_path = "../datasets/flows"
+logger = logging.getLogger(__name__)
 
+pcap_path = Path("./datasets/pcaps")
+save_dir_path = Path("./datasets/flows")
 
-paths = []
-filenames = []
+for i_pcap_file, pcap_file in enumerate(pcap_path.glob("*.pcap")):
 
-pat = re.compile("[^\.]*\.")
+    flows_save_path = save_dir_path / f"{pcap_file.stem}_flows.p"
 
-for dirpath, dirnames, filenames in os.walk(pcap_path):
+    # Skip files that have already been processed
+    if not flows_save_path.exists():
+        print(f"Loading file {i_pcap_file +1}: {pcap_file}")
 
-    n_files = len(filenames)
-    i_file = 0
+        # Counts how many packets each flow has
+        flow_counter = Counter()
 
-    for filename in filenames:
+        pcap_reader = PcapReader(str(pcap_file))
 
-        i_file += 1
+        packets = pcap_reader.read_all()
 
-        path = os.path.join(dirpath, filename)
+        for packet in packets:
 
-        actual_name = pat.match(filename)
+            if packet.haslayer(IP):
+                source_ip = packet[IP].src
+                destination_ip = packet[IP].dst
+            elif packet.haslayer(IPv6):
+                source_ip = packet[IPv6].src
+                destination_ip = packet[IPv6].dst
+            else:
+                continue
 
-        save_path = os.path.join(
-            save_dir_path,
-            filename[actual_name.span()[0] : actual_name.span()[1] - 1] + "_flows.p",
-        )
+            if packet.haslayer(TCP):
+                # Skip if no payload
+                if getattr(packet[TCP], "load", 0) == 0:
+                    continue
+                source_port = packet[TCP].sport
+                destination_port = packet[TCP].dport
+                protocol = "TCP"
+            elif packet.haslayer(UDP) and not packet.haslayer(DNS):
+                source_port = packet[UDP].sport
+                destination_port = packet[UDP].dport
+                protocol = "UDP"
+            else:
+                continue
 
-        if not os.path.isfile(save_path):
-            print("Loading file %d/%d: %s" % (i_file, n_files, path))
+            flow_key = (
+                source_ip,
+                destination_ip,
+                source_port,
+                destination_port,
+                protocol,
+            )
+            flow_counter.update((flow_key,))
 
-            flow_keys = set()
-            i_packet = 0
-            flows = {}
+        print(f"Number of unique flows: {len(flow_counter.keys())}")
 
-            ## The following code is taking from the scapy sniff function
-            sniff_sockets = {}
-            sniff_sockets[PcapReader(path)] = path
-            _main_socket = next(iter(sniff_sockets))
-            select_func = _main_socket.select
-            if not all(select_func == sock.select for sock in sniff_sockets):
-                warning(
-                    "Warning: inconsistent socket types ! The used select function"
-                    "will be the one of the first socket"
-                )
-            _select = lambda sockets, remain: select_func(sockets, remain)[0]
-            remain = None
-
-            try:
-                while sniff_sockets:
-                    for s in _select(sniff_sockets, remain):
-                        try:
-                            packet = s.recv()
-                        except socket.error as ex:
-                            log_runtime.warning(
-                                "Socket %s failed with '%s' and thus"
-                                " will be ignored" % (s, ex)
-                            )
-                            del sniff_sockets[s]
-                            continue
-                        if packet is None:
-                            try:
-                                if s.promisc:
-                                    continue
-                            except AttributeError:
-                                pass
-                            del sniff_sockets[s]
-                            break
-
-                        i_packet += 1
-                        if (i_packet % 10000) == 0:
-                            print("Loading packet %d" % i_packet)
-
-                        sip = None
-                        dip = None
-                        sport = None
-                        dport = None
-                        prot = None
-
-                        if packet.haslayer(IP):
-                            sip = packet[IP].src
-                            dip = packet[IP].dst
-                        if packet.haslayer(IPv6):
-                            sip = packet[IPv6].src
-                            dip = packet[IPv6].dst
-
-                        if packet.haslayer(TCP):
-                            # Skip if no payload
-                            if getattr(packet[TCP], "load", 0) == 0:
-                                continue
-                            sport = packet[TCP].sport
-                            dport = packet[TCP].dport
-                            prot = "TCP"
-                        elif packet.haslayer(UDP):
-                            if packet.haslayer(DNS):
-                                pass
-                                # dns_names.append(packet[4].qname.decode())
-                            else:
-                                sport = packet[UDP].sport
-                                dport = packet[UDP].dport
-                                prot = "UDP"
-
-                        if (
-                            sip is None
-                            or dip is None
-                            or sport is None
-                            or dport is None
-                            or prot is None
-                        ):
-                            pass
-                        else:
-                            flow_key = (sip, dip, sport, dport, prot)
-                            flow_keys.add(flow_key)
-
-                            if not flow_key in flows:
-                                flows[flow_key] = 0
-
-                            flows[flow_key] += 1
-
-            except KeyboardInterrupt:
-                pass
-
-            for s in sniff_sockets:
-                s.close()
-
-            print("Number of unique flows: %d" % len(flow_keys))
-
-            with open(save_path, "wb") as file:
-                pickle.dump(flows, file)
+        with open(flows_save_path, "wb") as file:
+            pickle.dump(flow_counter, file)

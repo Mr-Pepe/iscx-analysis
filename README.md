@@ -1,5 +1,7 @@
 # Analysis of the ISCX VPN-nonVPN Dataset 2016 for Encrypted Network Traffic Classification
 
+Read the [blog post](https://medium.com/@Mr_Pepe/encrypted-internet-traffic-classification-a-reality-check-ff1df0e2f940).
+
 Already half of today’s internet traffic is encrypted using protocols like SSL/TLS.
 This prevents classic deep packet inspection approaches from analyzing packet payloads.
 Recently, researchers published a deep learning approach, claiming that their trained
